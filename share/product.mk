@@ -23,7 +23,7 @@ endif
 
 COMMON_PATCHES := turnkey.d $(COMMON_PATCHES)
 
-CONF_VARS_BUILTIN ?= FAB_ARCH HOST_ARCH FAB_HTTP_PROXY AMD64 ARM64 RELEASE DISTRO CODENAME DEBIAN UBUNTU KERNEL DEBUG CHROOT_ONLY DI_LIVE_DEBUG
+CONF_VARS_BUILTIN ?= FAB_ARCH HOST_ARCH FAB_HTTP_PROXY AMD64 ARM64 RELEASE DISTRO CODENAME DEBIAN UBUNTU KERNEL DEBUG CHROOT_ONLY DI_LIVE_DEBUG SOURCE_DATE_EPOCH
 
 define filter-undefined-vars
 	$(foreach var,$1,$(if $($(var)), $(var)))
@@ -52,6 +52,18 @@ CDROOTS_PATH ?= $(FAB_PATH)/cdroots
 CDROOT ?= generic
 MKSQUASHFS ?= /usr/bin/mksquashfs
 MKSQUASHFS_OPTS ?= -no-sparse
+
+# https://reproducible-builds.org/docs/source-date-epoch/ - when set, pin
+# every timestamp the image would otherwise take from the clock. mksquashfs
+# and xorriso read the variable themselves (mksquashfs even refuses to take
+# both it and equivalent options), but xorriso only fixes its own metadata,
+# not the mtimes of the files it stores, and isohybrid writes a random MBR
+# id. Exporting the variable (CONF_VARS_BUILTIN above) also reaches dpkg-deb
+# and mkinitramfs inside the chroot. Unset, nothing here applies.
+ifneq ($(SOURCE_DATE_EPOCH),)
+XORRISO_DATE_OPTS := --set_all_file_dates @$(SOURCE_DATE_EPOCH)
+ISOHYBRID_OPTS := --id $(shell echo $$(( $(SOURCE_DATE_EPOCH) & 0xffffffff )))
+endif
 
 # if the CDROOT is a relative path, prefix CDROOTS_PATH
 # we set _CDROOT with eval to improve the readability of $(value _CDROOT) 
@@ -454,7 +466,7 @@ endef
 define run-genisoimage
     xorriso -as mkisofs \
         -o $O/product.iso -r -J \
-        -V ${ISOLABEL} \
+        -V ${ISOLABEL} $(XORRISO_DATE_OPTS) \
         -b isolinux/isolinux.bin \
         -c isolinux/boot.cat \
         -no-emul-boot \
@@ -466,7 +478,7 @@ endef
 define run-genisoimage-uefi
 	xorriso -as mkisofs \
 		-o $O/product.iso -r -J \
-		-V ${ISOLABEL} \
+		-V ${ISOLABEL} $(XORRISO_DATE_OPTS) \
 		-b isolinux/isolinux.bin \
 		-c isolinux/boot.cat \
 		-isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
@@ -481,7 +493,7 @@ define run-genisoimage-uefi
 endef
 
 define run-isohybrid
-	isohybrid $O/product.iso
+	isohybrid $(ISOHYBRID_OPTS) $O/product.iso
 endef
 
 # target: product.iso

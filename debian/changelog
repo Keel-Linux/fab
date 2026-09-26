@@ -1,0 +1,11 @@
+fab (1.1.1+keel1) trixie; urgency=low
+
+  * Honour SOURCE_DATE_EPOCH when set.
+
+ -- Keel Linux maintainers <admin@keellinux.org>  Sat, 26 Sep 2026 10:40:00 +0000
+
+fab (1.1.1) UNRELEASED; urgency=low
+
+  * undocumented
+
+ --  Stefan Davis <stefan@turnkeylinux.org>  Mon, 27 Jul 2026 00:24:20 +0000

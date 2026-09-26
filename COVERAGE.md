@@ -4,7 +4,15 @@ Measured on 2026-09-24 against upstream master (d7a314d), following the
 project decision 0003 (90 percent floor per repository, 95 percent for every
 file our changes touch).
 
-## Baseline: 0 percent, nothing measured
+## Measured baseline on the default branch: 100 percent (2026-09-26)
+
+Pull request #1 merged on 2026-09-26 (merge commit e79be43) and brought
+`tests/coverage.sh` with it: 19 of 19 checks of tests/source-date-epoch.sh on share/product.mk, 100 percent (make has no line tool). The gate in
+`.github/workflows/tests.yml` is set to 100, the measured number rounded
+down, and is only ever raised. The sections that follow record the state
+before the merge.
+
+## Baseline before the merge: 0 percent, nothing measured
 
 `tests/` holds `regtest.sh` (77 lines), `override.sh`, `parseopts.py` and
 `ptyfork.py`: a regression harness that expects a fab checkout at a hard

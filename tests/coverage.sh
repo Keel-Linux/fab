@@ -7,11 +7,11 @@
 # FAB_CHROOT_ENV, fab-plan-resolve and the untouched mksquashfs options).
 # Exits 1 when that share is below the threshold (default 95).
 #
-#   tests/coverage.sh [THRESHOLD]
+#   tests/coverage.sh [THRESHOLD]     (or COVERAGE_THRESHOLD in the environment)
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-threshold="${1:-95}"
+threshold="${1:-${COVERAGE_THRESHOLD:-95}}"
 
 tap="$("$here/source-date-epoch.sh" || true)"
 printf '%s\n' "$tap"

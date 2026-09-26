@@ -1,0 +1,13 @@
+# Coverage gate for fab. Threshold 0: nothing is measured on master
+# (COVERAGE.md; tests/regtest.sh is a root-and-network harness). tests/coverage.sh
+# arrives with feat/source-date-epoch; raise the threshold when it merges.
+name: tests
+on:
+  pull_request:
+  push:
+    branches: [master]
+jobs:
+  tests:
+    uses: keel-linux/.github/.github/workflows/test-shell.yml@main
+    with:
+      threshold: 0

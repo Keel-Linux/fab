@@ -104,6 +104,14 @@ ifeq ($(wildcard $(REMOVELIST)),)
 endif
 
 UNIT_DIRS ?= unit.d
+
+# The units this build applies, as directory paths. Every unit under
+# UNIT_DIRS by default. A build layered on a parent image overrides it with
+# the units the parent has not applied yet, because a unit's conf script
+# runs once and is not written to run twice; the plans of every unit are
+# still resolved (root.spec below), since the plan only names packages.
+UNITS ?= $(sort $(wildcard $(UNIT_DIRS)/*))
+
 CONF_SCRIPTS ?= conf.d
 PATCHES_PATH ?= patches.d
 
@@ -191,6 +199,7 @@ define help/body
 	@echo '  PLAN                       $(value PLAN)'
 	@echo '  REMOVELIST                 $(value REMOVELIST)'
 	@echo '  UNIT_DIRS                  $(value UNIT_DIRS)/'
+	@echo '  UNITS                      $(value UNITS)'
 	@echo '  ROOT_OVERLAY               $(value ROOT_OVERLAY)/'
 	@echo '  CONF_SCRIPTS               $(value CONF_SCRIPTS)/'
 	@echo '  PATCHES_PATH               $(value PATCHES_PATH)/'
@@ -282,6 +291,10 @@ endef
 
 # target: root.spec
 root.spec/deps ?= $(STAMPS_DIR)/bootstrap $(wildcard plan/*)
+# every unit's plan is resolved, including the plans of the units UNITS
+# leaves out: a plan names packages, and a package the parent image already
+# carries resolves to the version that is there rather than being installed
+# a second time
 define root.spec/body
 	unit_plans="$(wildcard $(UNIT_DIRS)/*/plan)"; \
 	fab-plan-resolve $(PLAN) $$unit_plans $(EXTRA_PLAN) --bootstrap=$(BOOTSTRAP) --output=$O/root.spec $(foreach var,$(_CONF_VARS_BUILTIN),-D '$(var)=$($(var))')
@@ -375,23 +388,31 @@ define root.patched/body
 	  fi
 	  )
 
-	# apply the common removelists
+	# apply the unit overlays, in unit name order and all of them before any
+	# unit conf script, the order the common overlays and the common conf
+	# scripts above are applied in: a unit is a component of the same kind,
+	# and a recipe that composes several must not depend on which one of
+	# them fab happens to reach first
+	$(foreach unit,$(UNITS), \
+	  if [ -d $(unit)/overlay ]; then \
+		echo fab-apply-overlay $(unit)/overlay $O/root.patched; \
+		fab-apply-overlay $(unit)/overlay $O/root.patched || exit; \
+	  fi; \
+	  )
+
+	# run the unit configuration scripts
+	$(foreach unit,$(UNITS), \
+	  if [ -x $(unit)/conf ]; then \
+		echo fab-chroot $O/root.patched --script $(unit)/conf; \
+		fab-chroot $O/root.patched --script $(unit)/conf || exit; \
+	  fi; \
+	  )
+
+	# apply the common removelists, after the units, so that a removelist
+	# can remove a file a unit brought in
 	$(foreach removelist,$(_COMMON_REMOVELISTS),
 	  fab-apply-removelist $(removelist) $O/root.patched; \
 	  )
-
-	# apply the product-local units
-	$(foreach unit,$(wildcard $(UNIT_DIRS)/*), \
-	  if [ -d $(unit)/overlay ]; then \
-		echo fab-apply-overlay $(unit)/overlay $O/root.patched; \
-		fab-apply-overlay $(unit)/overlay $O/root.patched; \
-	  fi; \
-	  if [ -x $(unit)/conf ]; then \
-		echo fab-chroot $O/root.patched --script $(unit)/conf; \
-		fab-chroot $O/root.patched --script $(unit)/conf; \
-	  fi; \
-	  )
-
 
 	# apply the product-local root overlay
 	if [ -d $(ROOT_OVERLAY) ]; then \

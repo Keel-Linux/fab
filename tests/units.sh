@@ -85,6 +85,8 @@ printf '#!/bin/sh\ntrue\n' > "$product/unit.d/alpha/conf"
 chmod 755 "$product/unit.d/alpha/conf"
 printf '#!/bin/sh\ntrue\n' > "$product/unit.d/gamma/conf"
 chmod 644 "$product/unit.d/gamma/conf"
+echo '/usr/local/src/alpha' > "$product/unit.d/alpha/removelist"
+mkdir -p "$product/unit.d/gamma/removelist"
 
 cat > "$product/Makefile" <<'EOF'
 COMMON_OVERLAYS = shared
@@ -213,6 +215,7 @@ alpha_overlay='^fab-apply-overlay unit\.d/alpha/overlay build/root\.patched$'
 beta_overlay='^fab-apply-overlay unit\.d/beta/overlay build/root\.patched$'
 gamma_overlay='^fab-apply-overlay unit\.d/gamma/overlay build/root\.patched$'
 alpha_conf='^fab-chroot build/root\.patched --script unit\.d/alpha/conf$'
+alpha_removelist='^fab-apply-removelist unit\.d/alpha/removelist build/root\.patched$'
 common_overlay='^fab-apply-overlay .*/common/overlays/shared '
 common_conf='^fab-chroot build/root\.patched --script .*/common/conf/shared$'
 common_removelist='^fab-apply-removelist .*/common/removelists/shared '
@@ -240,6 +243,15 @@ before "unit overlays come after the common conf scripts" \
     "$common_conf" "$alpha_overlay"
 before "every unit overlay comes before any unit conf script" \
     "$gamma_overlay" "$alpha_conf"
+called "the removelist of a unit is applied" "$alpha_removelist"
+not_called "a unit whose removelist is a directory contributes none" \
+    'unit\.d/gamma/removelist'
+not_called "a unit without a removelist contributes none" \
+    'unit\.d/beta/removelist'
+before "unit removelists come after the unit conf scripts" \
+    "$alpha_conf" "$alpha_removelist"
+before "unit removelists come before the common removelists" \
+    "$alpha_removelist" "$common_removelist"
 before "unit conf scripts come before the common removelists" \
     "$alpha_conf" "$common_removelist"
 before "unit overlays come before the product-local overlay" \
@@ -260,6 +272,11 @@ export STUB_FAIL='script unit\.d/alpha/conf'
 build_fails "a unit conf script that fails stops the build" \
     build/stamps/root.patched
 not_called "nothing after a failed unit conf script runs" "$local_overlay"
+
+export STUB_FAIL='removelist unit\.d/alpha/removelist'
+build_fails "a unit removelist that fails stops the build" \
+    build/stamps/root.patched
+not_called "nothing after a failed unit removelist runs" "$local_overlay"
 unset STUB_FAIL
 
 # --- a layered build applies only the units the parent has not applied ---------
@@ -270,6 +287,8 @@ called "a selected unit is applied" "$beta_overlay"
 not_called "a unit left out of UNITS is not applied" 'unit\.d/alpha/overlay'
 not_called "the conf script of a unit left out of UNITS is not run" \
     'unit\.d/alpha/conf'
+not_called "the removelist of a unit left out of UNITS is not applied" \
+    'unit\.d/alpha/removelist'
 called "the common removelists are applied with a selected unit" \
     "$common_removelist"
 
@@ -295,6 +314,49 @@ builds "root.spec is resolved with no unit selected" \
     build/stamps/root.spec UNITS=
 called "an empty UNITS still resolves every unit plan" \
     'fab-plan-resolve plan/main unit\.d/alpha/plan unit\.d/beta/plan unit\.d/gamma/plan '
+
+# --- a unit contributes a CONF_VARS entry ---------------------------------------
+# _CONF_VARS is settled before any unit is looked at, so a conf-vars file is
+# the only way a unit can ask for a build-time variable. mk/turnkey/mysql.mk
+# line 1 is "CONF_VARS += MYSQL_PASS"; this is that line, in unit form.
+
+printf '# the database password\nMYSQL_PASS\n\n' \
+    > "$product/unit.d/alpha/conf-vars"
+printf 'BETA_ONE\nBETA_TWO\n' > "$product/unit.d/beta/conf-vars"
+
+is "a variable a unit names but nobody sets is left out" \
+    "$(make_var UNIT_CONF_VARS)" "MYSQL_PASS BETA_ONE BETA_TWO"
+is "an unset unit variable stays out of the chroot environment" \
+    "$(make_var FAB_CHROOT_ENV | grep -c MYSQL_PASS)" "0"
+
+export MYSQL_PASS=secret BETA_TWO=2
+is "a unit variable that is set reaches the chroot environment" \
+    "$(make_var FAB_CHROOT_ENV | tr : '\n' | grep -cE '^(MYSQL_PASS|BETA_TWO)$')" "2"
+is "the unit variable nobody set is still left out" \
+    "$(make_var FAB_CHROOT_ENV | tr : '\n' | grep -c '^BETA_ONE$')" "0"
+is "a unit variable does not change with UNITS" \
+    "$(cd "$product" && "$share/load_env" 2>/dev/null; make debug V=FAB_CHROOT_ENV UNITS= 2>&1 >/dev/null \
+        | sed -n 's|^.*: FAB_CHROOT_ENV = ||p' | head -n 1 | tr : '\n' | grep -cE '^(MYSQL_PASS|BETA_TWO)$')" "2"
+
+builds "a build with unit variables succeeds" build/stamps/root.patched
+called "the unit conf script still runs" "$alpha_conf"
+unset MYSQL_PASS BETA_TWO
+
+printf 'MYSQL-PASS\n' > "$product/unit.d/gamma/conf-vars"
+if build build/stamps/root.patched; then
+    not_ok "a conf-vars entry that is not a variable name stops make" \
+        "make returned 0"
+else
+    ok "a conf-vars entry that is not a variable name stops make"
+fi
+if grep -q 'not a variable name in .*unit\.d/gamma/conf-vars: MYSQL-PASS' "$work/make.out"; then
+    ok "the error names the offending file and entry"
+else
+    not_ok "the error names the offending file and entry" "$(cat "$work/make.out")"
+fi
+rm "$product/unit.d/gamma/conf-vars" "$product/unit.d/alpha/conf-vars" \
+    "$product/unit.d/beta/conf-vars"
+is "no conf-vars file means no unit variable" "$(make_var UNIT_CONF_VARS)" ""
 
 # --- a product without units ----------------------------------------------------
 

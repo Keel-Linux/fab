@@ -19,9 +19,9 @@ before the merge.
 | Suite | Checks | What it measures |
 |-------|--------|------------------|
 | tests/source-date-epoch.sh | 19 of 19 | the `SOURCE_DATE_EPOCH` handling |
-| tests/units.sh | 38 of 38 | the unit loop, `UNITS` and the position of the units in `root.patched` |
+| tests/units.sh | 56 of 56 | the unit loop, `UNITS`, the position of the units in `root.patched`, the per-unit removelist and `UNIT_CONF_VARS` |
 
-Total 57 of 57, 100 percent. The gate stays at 100.
+Total 75 of 75, 100 percent. The gate stays at 100.
 
 `tests/units.sh` does not dry run. It builds a fake product with three
 units against this checkout's `product.mk` with the four fab tools replaced

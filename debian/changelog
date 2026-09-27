@@ -1,3 +1,15 @@
+fab (1.1.1+keel2) trixie; urgency=low
+
+  * Apply the units before the common removelists, and let a build select
+    which ones it applies through UNITS, so a layer built on a parent does
+    not run a component's conf script a second time.
+  * Let a unit carry a removelist, applied after its conf script, and name
+    the build-time variables its conf script reads in a conf-vars file, so a
+    component is the same three phases as a makefile fragment of the shared
+    tree.
+
+ -- Keel Linux maintainers <admin@keellinux.org>  Sun, 27 Sep 2026 09:00:00 +0000
+
 fab (1.1.1+keel1) trixie; urgency=low
 
   * Honour SOURCE_DATE_EPOCH when set.

@@ -23,14 +23,32 @@ endif
 
 COMMON_PATCHES := turnkey.d $(COMMON_PATCHES)
 
+# defined here, before _CONF_VARS, because a unit may contribute to it
+UNIT_DIRS ?= unit.d
+
 CONF_VARS_BUILTIN ?= FAB_ARCH HOST_ARCH FAB_HTTP_PROXY AMD64 ARM64 RELEASE DISTRO CODENAME DEBIAN UBUNTU KERNEL DEBUG CHROOT_ONLY DI_LIVE_DEBUG SOURCE_DATE_EPOCH
+
+# The build-time variables a unit's conf script reads, named one per line in
+# the unit's conf-vars file, # starting a comment: the unit form of a
+# "CONF_VARS += NAME" line in a makefile fragment, and the only way a unit can
+# ask for one, since _CONF_VARS is settled before any unit is looked at.
+# Read from every unit under UNIT_DIRS and not from UNITS, so that the chroot
+# environment of a layered build does not change with the units that build
+# happens to apply.
+UNIT_CONF_VARS_FILES = $(wildcard $(UNIT_DIRS)/*/conf-vars)
+UNIT_CONF_VARS_NAMED = $(shell cat $(UNIT_CONF_VARS_FILES) /dev/null | sed 's/#.*//')
+UNIT_CONF_VARS = $(shell printf '%s\n' $(UNIT_CONF_VARS_NAMED) | grep -xE '[A-Za-z_][A-Za-z0-9_]*')
+UNIT_CONF_VARS_BAD = $(filter-out $(UNIT_CONF_VARS),$(UNIT_CONF_VARS_NAMED))
+ifneq ($(UNIT_CONF_VARS_BAD),)
+  $(error not a variable name in $(UNIT_CONF_VARS_FILES): $(UNIT_CONF_VARS_BAD))
+endif
 
 define filter-undefined-vars
 	$(foreach var,$1,$(if $($(var)), $(var)))
 endef
 
 _CONF_VARS_BUILTIN = $(call filter-undefined-vars,$(CONF_VARS_BUILTIN))
-_CONF_VARS = $(_CONF_VARS_BUILTIN) $(call filter-undefined-vars,$(CONF_VARS))
+_CONF_VARS = $(_CONF_VARS_BUILTIN) $(call filter-undefined-vars,$(CONF_VARS) $(UNIT_CONF_VARS))
 
 export $(_CONF_VARS)
 export FAB_CHROOT_ENV = $(shell echo $(_CONF_VARS) | sed 's/ \+/:/g')
@@ -102,8 +120,6 @@ REMOVELIST ?= removelist
 ifeq ($(wildcard $(REMOVELIST)),)
   REMOVELIST =
 endif
-
-UNIT_DIRS ?= unit.d
 
 # The units this build applies, as directory paths. Every unit under
 # UNIT_DIRS by default. A build layered on a parent image overrides it with
@@ -200,6 +216,7 @@ define help/body
 	@echo '  REMOVELIST                 $(value REMOVELIST)'
 	@echo '  UNIT_DIRS                  $(value UNIT_DIRS)/'
 	@echo '  UNITS                      $(value UNITS)'
+	@echo '  UNIT_CONF_VARS             $(UNIT_CONF_VARS)'
 	@echo '  ROOT_OVERLAY               $(value ROOT_OVERLAY)/'
 	@echo '  CONF_SCRIPTS               $(value CONF_SCRIPTS)/'
 	@echo '  PATCHES_PATH               $(value PATCHES_PATH)/'
@@ -405,6 +422,15 @@ define root.patched/body
 	  if [ -x $(unit)/conf ]; then \
 		echo fab-chroot $O/root.patched --script $(unit)/conf; \
 		fab-chroot $O/root.patched --script $(unit)/conf || exit; \
+	  fi; \
+	  )
+
+	# apply the unit removelists, the third phase a common component goes
+	# through, and a component that carries one cannot be a unit without it
+	$(foreach unit,$(UNITS), \
+	  if [ -f $(unit)/removelist ]; then \
+		echo fab-apply-removelist $(unit)/removelist $O/root.patched; \
+		fab-apply-removelist $(unit)/removelist $O/root.patched || exit; \
 	  fi; \
 	  )
 

@@ -12,6 +12,25 @@ Pull request #1 merged on 2026-09-26 (merge commit e79be43) and brought
 down, and is only ever raised. The sections that follow record the state
 before the merge.
 
+## 2026-09-27: the unit loop and where it runs
+
+`tests/coverage.sh` now runs two suites and counts the checks of both:
+
+| Suite | Checks | What it measures |
+|-------|--------|------------------|
+| tests/source-date-epoch.sh | 19 of 19 | the `SOURCE_DATE_EPOCH` handling |
+| tests/units.sh | 38 of 38 | the unit loop, `UNITS` and the position of the units in `root.patched` |
+
+Total 57 of 57, 100 percent. The gate stays at 100.
+
+`tests/units.sh` does not dry run. It builds a fake product with three
+units against this checkout's `product.mk` with the four fab tools replaced
+by stubs that log their arguments, and asserts on the log: what was
+applied, in which order, and what a failing tool does. That is why it can
+tell that a unit whose `conf` is not executable is skipped, which a
+`make -n` of the same recipe cannot, since the `[ -x ]` guard is resolved
+by the shell and not by make.
+
 ## Baseline before the merge: 0 percent, nothing measured
 
 `tests/` holds `regtest.sh` (77 lines), `override.sh`, `parseopts.py` and

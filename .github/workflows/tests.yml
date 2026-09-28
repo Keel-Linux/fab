@@ -11,3 +11,33 @@ jobs:
     uses: keel-linux/.github/.github/workflows/test-shell.yml@main
     with:
       threshold: 100
+
+  # A change that ships must come with a changelog entry, or it cannot be
+  # installed and never reaches a machine. This repository had no such gate,
+  # which is how pull requests #4 and #5 changed share/product.mk, a path
+  # this package ships, with no entry: the version was bumped at packaging
+  # time instead, and the build host ran 1.1.1+keel2 for three hours before
+  # any branch carried it (#7). The rule and its tests are
+  # bin/require-changelog of the .github repository. This job produces the
+  # check "package / changelog"; it runs on pull requests only, because
+  # require-changelog compares the two commits of the pull request and has
+  # nothing to compare outside one.
+  package:
+    if: github.event_name == 'pull_request'
+    uses: keel-linux/.github/.github/workflows/require-changelog.yml@main
+
+  # Every version this repository has released must name the commit it was
+  # built from: a layer manifest records the builder as a version string and
+  # nothing else, so the string is provenance only if a tag resolves it.
+  # bin/check-release-tags states the rule and exempts the newest entry of
+  # the changelog, which is the release a pull request is proposing.
+  release-tags:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Tags are the thing under test, and the default shallow checkout
+          # fetches none of them.
+          fetch-depth: 0
+      - run: bin/check-release-tags

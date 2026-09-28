@@ -17,3 +17,23 @@ DEB_VERSION := $(shell dpkg-parsechangelog -SVersion)
 override_dh_install:
 	dh_install
 	echo '$(DEB_VERSION)' > debian/keel-fab/usr/share/fab/version
+
+# dh_python3 finds a private directory by the binary package name, so while
+# the package was called fab it picked up /usr/share/fab on its own. The
+# package is keel-fab now and the directory keeps its name, because
+# FAB_SHARE_PATH and nine call sites point at it, so the directory has to be
+# named here. Without this the rename silently drops the byte-compilation
+# and the shebang rewrite that the fab package did, and the package differs
+# from the one it replaces for no reason anybody wrote down.
+#
+# The two calls are both needed and the order matters. The bare call is what
+# moves fablib from /usr/lib/python3.13/dist-packages, where pybuild put it,
+# to the version independent /usr/lib/python3/dist-packages; giving
+# dh_python3 a directory makes it process that directory instead, so a
+# single call with the argument silently pins fablib to one python version.
+# Measured by building all three variants: bare only loses the runtime.d
+# registration, argument only moves dist-packages, both give a package whose
+# paths are identical to fab 1.1.1+keel2.
+override_dh_python3:
+	dh_python3
+	dh_python3 /usr/share/fab

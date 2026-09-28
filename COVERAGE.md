@@ -39,10 +39,10 @@ by the shell and not by make.
 |-------|--------|------------------|
 | tests/source-date-epoch.sh | 19 of 19 | the `SOURCE_DATE_EPOCH` handling |
 | tests/units.sh | 56 of 56 | the unit loop, `UNITS`, the position of the units in `root.patched`, the per-unit removelist and `UNIT_CONF_VARS` |
-| tests/packaging.sh | 34 of 34 | the package identity and relationships, every path the package ships, and `fablib/version.py` |
+| tests/packaging.sh | 35 of 35 | the package identity and relationships, every path the package ships, and `fablib/version.py` |
 | tests/release-tags.sh | 15 of 15 | `bin/check-release-tags`: each verdict and each exit code |
 
-Total 124 of 124, 100 percent. The gate stays at 100.
+Total 125 of 125, 100 percent. The gate stays at 100.
 
 `tests/packaging.sh` exists for one reason. Roughly 380 call sites across
 this organization name `fab-chroot`, `fab-apply-overlay`, `FAB_PATH` or
@@ -60,6 +60,17 @@ The five branches of `fablib/version.py` (absent file, empty file,
 whitespace, a value, and the default and overridden share path) are driven
 directly rather than through the `fab` entry point, which imports `chroot`
 and `python3-debian` and so cannot run on the coverage runner.
+
+What the suite cannot assert is that the built package is the same package,
+so that was measured instead, by building both in a `debian:trixie`
+container and comparing. `keel-fab 0.1.0` against the `fab 1.1.1+keel2`
+installed on the build host: the same 26 paths, 24 of them byte identical,
+`/usr/bin/fab` differing only by the `get_version` change and
+`runtime.d/*.rtupdate` only by the package name inside it, plus the two new
+files `fablib/version.py` and `/usr/share/fab/version`. All nine
+`/usr/bin/fab-*` symlinks and `share/product.mk` are byte identical. The
+two `debian/rules` overrides were each measured on their own and together,
+which is how the `dh_python3` interaction below was found.
 
 `tests/release-tags.sh` builds throwaway git repositories under `mktemp -d`
 and runs the script against them, so the suite does not depend on the tags

@@ -178,6 +178,20 @@ else
         "$(cat "$rules")"
 fi
 
+# dh_python3 finds a private directory by the binary package name, so it
+# picked up /usr/share/fab on its own while the package was called fab.
+# Measured by building both: without the directory named explicitly, the
+# keel-fab package loses the byte-compilation registration in
+# /usr/share/python3/runtime.d and the shebang rewrite of the two scripts
+# under /usr/share/fab, and so differs from the package it replaces for a
+# reason nobody chose.
+if grep -q 'dh_python3 /usr/share/fab' "$rules"; then
+    ok "the build still treats /usr/share/fab as a private python directory"
+else
+    not_ok "the build still treats /usr/share/fab as a private python directory" \
+        "$(cat "$rules")"
+fi
+
 # fablib/version.py is what reads it back. It imports os and pathlib only,
 # so it can be driven here without the chroot and python3-debian modules the
 # entry point needs.

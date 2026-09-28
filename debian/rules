@@ -2,5 +2,18 @@
 
 export PYTHONDONTWRITEBYTECODE=1
 
+# The version the package reports is the version it was built as. fab used
+# to answer --version by running "apt-cache policy fab", which asks about
+# whatever package is called fab on this machine rather than about itself:
+# after the rename that is a different package or none at all, and on a host
+# that installed a .deb by file apt has no answer either way. bt-layer
+# writes that answer into every layer manifest as fab_version, so it has to
+# come from here, where the changelog is the only authority.
+DEB_VERSION := $(shell dpkg-parsechangelog -SVersion)
+
 %:
 	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_install:
+	dh_install
+	echo '$(DEB_VERSION)' > debian/keel-fab/usr/share/fab/version

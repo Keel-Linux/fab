@@ -87,6 +87,17 @@ however the source is renamed, and require-changelog, reprepro and
 dpkg-genchanges all read it that way"
 fi
 
+# The package states what it is in three places, and they used to disagree:
+# the built package told importlib.metadata it was "fab 1.1.0" while dpkg
+# called it "fab 1.1.1+keel2", because pyproject.toml was never touched when
+# the Debian version was bumped. Three names and versions is how a provenance
+# record ends up quoting whichever one the reader happened to ask.
+pyproject="$root/pyproject.toml"
+py_name="$(sed -nE 's/^name = "([^"]+)"$/\1/p' "$pyproject")"
+py_version="$(sed -nE 's/^version = "([^"]+)"$/\1/p' "$pyproject")"
+is "pyproject names the same package as debian/control" "$py_name" "keel-fab"
+is "pyproject carries the changelog version" "$py_version" "$version"
+
 maintainer="$(field "$control" Maintainer)"
 if [[ "$maintainer" == *turnkeylinux.org* ]]; then
     not_ok "the maintainer is this project" \
@@ -213,31 +224,47 @@ fi
 # so it can be driven here without the chroot and python3-debian modules the
 # entry point needs.
 recorded() {
-    FAB_SHARE_PATH="$1" python3 -c \
+    FAB_VERSION_FILE="$1" python3 -c \
         'from fablib.version import package_version; print(package_version())' \
         2>&1
 }
 
-mkdir -p "$work/share" "$work/empty"
+mkdir -p "$work/share"
 cd "$root" || exit 3
 
 echo "0.1.0" > "$work/share/version"
-is "the recorded version is what fab reports" "$(recorded "$work/share")" "0.1.0"
+is "the recorded version is what fab reports" \
+    "$(recorded "$work/share/version")" "0.1.0"
 
 printf '  2.3.4  \n' > "$work/share/version"
 is "surrounding whitespace is not part of the version" \
-    "$(recorded "$work/share")" "2.3.4"
+    "$(recorded "$work/share/version")" "2.3.4"
 
 is "an absent version file reports unknown, not a wrong answer" \
-    "$(recorded "$work/empty")" "unknown"
+    "$(recorded "$work/nothing-here")" "unknown"
 
 : > "$work/share/version"
-is "an empty version file reports unknown" "$(recorded "$work/share")" "unknown"
+is "an empty version file reports unknown" \
+    "$(recorded "$work/share/version")" "unknown"
 
-is "the default share path is the packaged one" \
-    "$(env -u FAB_SHARE_PATH python3 -c \
-        'from fablib.version import share_path; print(share_path())')" \
-    "/usr/share/fab"
+is "the default path is the packaged one" \
+    "$(env -u FAB_VERSION_FILE python3 -c \
+        'from fablib.version import version_file; print(version_file())')" \
+    "/usr/share/fab/version"
+
+# The override has to be a name no build sets. FAB_SHARE_PATH is a build
+# variable (share/product.mk:60, common/mk/turnkey.mk:26), and while both use
+# ?= and neither exports it, one exported FAB_SHARE_PATH pointing at a
+# checkout would otherwise be enough to make bt-layer write
+# "fab_version unknown" into every manifest built afterwards.
+if grep -qE '(getenv|environ)[^)]*FAB_SHARE_PATH' \
+        "$root/fablib/version.py" "$root/fab"; then
+    not_ok "no build variable can redirect the version lookup" \
+        "$(grep -nE '(getenv|environ)[^)]*FAB_SHARE_PATH' \
+            "$root/fablib/version.py" "$root/fab")"
+else
+    ok "no build variable can redirect the version lookup"
+fi
 
 echo "1..$count"
 exit "$failed"

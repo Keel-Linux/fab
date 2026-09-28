@@ -39,51 +39,89 @@ by the shell and not by make.
 |-------|--------|------------------|
 | tests/source-date-epoch.sh | 19 of 19 | the `SOURCE_DATE_EPOCH` handling |
 | tests/units.sh | 56 of 56 | the unit loop, `UNITS`, the position of the units in `root.patched`, the per-unit removelist and `UNIT_CONF_VARS` |
-| tests/packaging.sh | 36 of 36 | the package identity and relationships, every path the package ships, and `fablib/version.py` |
-| tests/release-tags.sh | 15 of 15 | `bin/check-release-tags`: each verdict and each exit code |
+| tests/packaging.sh | 39 of 39 | the package identity and relationships, every path the package ships, the agreement of the four places it states its version, and `fablib/version.py` |
+| tests/release-tags.sh | 27 of 27 | `bin/check-release-tags`: each verdict, each exit code, the proposed-release exemption and what revokes it |
 
-Total 126 of 126, 100 percent. The gate stays at 100.
+Total 141 of 141, 100 percent. The gate stays at 100.
 
-`tests/packaging.sh` exists for one reason. Roughly 380 call sites across
-this organization name `fab-chroot`, `fab-apply-overlay`, `FAB_PATH` or
-`/usr/share/fab`, and none of them reads the Debian package name, so
-renaming the package to `keel-fab` is invisible to all of them, provided
-the package still ships the same paths. debhelper keys `.install`, `.links`
-and `.docs` on the binary package name, so a rename that forgets to move
-those three files builds a package with no `/usr/bin/fab*` and no
-`/usr/share/fab` at all, and the failure appears at the first `fab-chroot`
-of the next build rather than at packaging time. Each of the nine
-`/usr/bin/fab-*` aliases is therefore one check of its own, and so is each
-line of the install file.
+**What this number is, and what it is not.** `tests/coverage.sh` computes the
+share of checks that pass, so it reads 100 whenever the suites are green and
+can only fall when one fails. It is not a line or branch measurement, and
+adding a suite to `suites=` does not by itself establish that the suite
+exercises anything: the claim rests on the enumeration in each script's
+header. `docs/traps.md` already carries "66 tests and 100 percent line
+coverage on the same file" as something that misled this project once, and
+the two suites added here are the first where a branch could go unexercised
+without the number moving. `make` has no line coverage tool, which is why the
+measurement is shaped this way, but the shape is worth knowing when reading
+the number.
+
+`tests/packaging.sh` exists for one reason. Roughly 246 references to the
+eleven `fab-*` commands, 436 to `FAB_PATH`, `FAB_ARCH` and `FAB_SHARE_PATH`,
+and 31 to `/usr/share/fab` across this organization, and none of them reads
+the Debian package name, so renaming the package to `keel-fab` is invisible
+to all of them, provided it still ships the same paths. debhelper keys
+`.install`, `.links` and `.docs` on the binary package name, so a rename that
+forgets to move those three files builds a package with no `/usr/bin/fab*`
+and no `/usr/share/fab` at all, and the failure appears at the first
+`fab-chroot` of the next build rather than at packaging time. Each of the
+nine `/usr/bin/fab-*` aliases is therefore one check of its own, and so is
+each line of the install file.
 
 The five branches of `fablib/version.py` (absent file, empty file,
-whitespace, a value, and the default and overridden share path) are driven
-directly rather than through the `fab` entry point, which imports `chroot`
-and `python3-debian` and so cannot run on the coverage runner.
+whitespace, a value, and the default path) are driven directly rather than
+through the `fab` entry point, which imports `chroot` and `python3-debian`
+and so cannot run on the coverage runner. A sixth check asserts that the
+override variable is `FAB_VERSION_FILE` and not `FAB_SHARE_PATH`: the latter
+is a build variable, and one exported `FAB_SHARE_PATH` pointing at a checkout
+would otherwise make `bt-layer` write `fab_version unknown` into every
+manifest built afterwards.
 
-What the suite cannot assert is that the built package is the same package,
-so that was measured instead, by building both in a `debian:trixie`
-container and comparing. `keel-fab 2.0.0` against the `fab 1.1.1+keel2`
-installed on the build host: **all 28 paths the old package had are present,
-26 of them byte identical**, including all nine `/usr/bin/fab-*` symlinks
-and `share/product.mk`. The two that differ are `/usr/bin/fab`, by the
-`get_version` change alone, and `runtime.d/*.rtupdate`, by the package name
-inside it. Two files are new, `fablib/version.py` and
-`/usr/share/fab/version`. Nothing is missing.
+`tests/release-tags.sh` builds throwaway git repositories under `mktemp -d`
+and runs the script against them, so the suite does not depend on the tags of
+this repository. It covers a tagged history, a missing tag, a tag on the
+wrong commit, a lightweight tag, a tag on an unreachable orphan commit, an
+`UNRELEASED` entry on top, a source rename, the floor, and four unusable
+inputs. The lightweight and unreachable cases are there because the reverse
+direction the rule promises is `git describe --match '*/*'`, which refuses a
+lightweight tag outright: a forward direction that accepted one would enforce
+the two halves of the invariant to different standards.
+
+### What the suite cannot assert, measured instead
+
+No assertion about `debian/` can say what a build produces, so both packages
+were built in a `debian:trixie` container and compared. `keel-fab 2.0.0`
+against the `fab 1.1.1+keel2` installed on the build host:
+
+| | Old | New |
+|---|---|---|
+| Entries | 35 (26 files, 9 symlinks) | 37 (28 files, 9 symlinks) |
+
+- **27 entries are at the same path, and 26 of them are byte identical**,
+  including all nine `/usr/bin/fab-*` symlinks and `share/product.mk`, whose
+  md5 is `a06bfe03` in both. The one that differs is `/usr/bin/fab`, by the
+  `get_version` change alone.
+- **8 entries are renamed**, every one of them by debhelper keying on the
+  package name: the four `dist-info` files, the three under
+  `usr/share/doc/fab/`, and `runtime.d/fab.rtupdate`. Five of the eight are
+  byte identical under the new name; `changelog.gz` carries the new entry,
+  `rtupdate` names the package, and `METADATA` names the package and version.
+- **2 are new**: `fablib/version.py` and `/usr/share/fab/version`.
+- Nothing is dropped.
+
+The four places the package states its version now agree: dpkg says
+`keel-fab 2.0.0`, `/usr/share/fab/version` says `2.0.0`, the `dist-info`
+`METADATA` says `keel-fab 2.0.0`, and the changelog says `keel-fab (2.0.0)`.
+They did not before: the package shipped `fab-1.1.0.dist-info` while dpkg
+called it `fab 1.1.1+keel2`, so `importlib.metadata.version` was a fourth,
+wrong answer. `tests/packaging.sh` asserts the agreement now.
 
 The two `debian/rules` overrides were each measured on their own and
 together, which is how the `dh_python3` interaction below was found.
 
-`tests/release-tags.sh` builds throwaway git repositories under `mktemp -d`
-and runs the script against them, so the suite does not depend on the tags
-of this repository: a tagged history, a missing tag, a tag on the wrong
-commit, an `UNRELEASED` entry, a source rename, and the three unusable
-inputs each get a check.
-
-The TAP helpers moved to `tests/tap.sh` when the third suite wanted them.
-The handbook records copying a test library instead of sharing it as
-something this project did wrong and would do again unless it was written
-down.
+The TAP helpers moved to `tests/tap.sh` when the third suite wanted them. The
+handbook records copying a test library instead of sharing it as something
+this project did wrong and would do again unless it was written down.
 
 ## Baseline before the merge: 0 percent, nothing measured
 

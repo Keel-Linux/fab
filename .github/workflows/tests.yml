@@ -31,6 +31,20 @@ jobs:
   # nothing else, so the string is provenance only if a tag resolves it.
   # bin/check-release-tags states the rule and exempts the newest entry of
   # the changelog, which is the release a pull request is proposing.
+  # Every version this repository has released must name the commit it was
+  # built from: a layer manifest records the builder as a version string and
+  # nothing else, so the string is provenance only if a tag resolves it.
+  #
+  # Two invocations, because the newest entry means different things in the
+  # two places. On a pull request it is the release being proposed and the
+  # commit it will be tagged on does not exist yet. On the default branch it
+  # does exist, and a merged, built and installed release with no tag is
+  # exactly the defect #7 was filed about, so --require-newest is what keeps
+  # this from being that hole one version deep. Push the tag with the merge.
+  #
+  # --since is the floor. Below it are the entries this repository was forked
+  # with, which upstream tags as v1.1.0 and v1.0.3; a later merge from
+  # upstream must not start demanding tags that are not ours to make.
   release-tags:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -40,4 +54,9 @@ jobs:
           # Tags are the thing under test, and the default shallow checkout
           # fetches none of them.
           fetch-depth: 0
-      - run: bin/check-release-tags
+      - name: Releases below the one being proposed must be tagged
+        if: github.event_name == 'pull_request'
+        run: bin/check-release-tags --since 1.1.1+keel1
+      - name: Every release must be tagged, including the newest
+        if: github.event_name != 'pull_request'
+        run: bin/check-release-tags --since 1.1.1+keel1 --require-newest

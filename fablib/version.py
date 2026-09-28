@@ -8,26 +8,34 @@ installed the .deb from a file has no archive entry to report at all.
 
 bt-layer records this string in every layer manifest as fab_version, so a
 wrong answer here is a wrong provenance record on every image built
-afterwards.
+afterwards. That is why the override below is FAB_VERSION_FILE and not
+FAB_SHARE_PATH: FAB_SHARE_PATH is a build variable, and although product.mk
+and turnkey.mk both set it with ?= and neither exports it, one exported
+FAB_SHARE_PATH pointing at a checkout would be enough to make every manifest
+built afterwards record "unknown". Nothing a build environment sets for its
+own reasons may redirect this lookup.
 """
 
 import os
 from pathlib import Path
 
-DEFAULT_SHARE_PATH = "/usr/share/fab"
-VERSION_FILE = "version"
+VERSION_PATH = "/usr/share/fab/version"
 UNKNOWN = "unknown"
 
 
-def share_path() -> Path:
-    """Where the package put its data, overridable for tests."""
-    return Path(os.getenv("FAB_SHARE_PATH") or DEFAULT_SHARE_PATH)
+def version_file() -> Path:
+    """The file the package recorded its version in.
+
+    FAB_VERSION_FILE exists for the tests and for nothing else. No build sets
+    it, and nothing in this repository reads it outside this function.
+    """
+    return Path(os.getenv("FAB_VERSION_FILE") or VERSION_PATH)
 
 
 def package_version() -> str:
     """The recorded version, or UNKNOWN when there is nothing to read."""
     try:
-        recorded = (share_path() / VERSION_FILE).read_text()
+        recorded = version_file().read_text()
     except OSError:
         return UNKNOWN
     return recorded.strip() or UNKNOWN

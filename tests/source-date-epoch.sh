@@ -59,20 +59,8 @@ dry_run() {
 
 # --- TAP helpers ------------------------------------------------------------
 
-count=0
-failed=0
-
-ok() {
-    count=$((count + 1))
-    echo "ok $count - $1"
-}
-
-not_ok() {
-    count=$((count + 1))
-    failed=$((failed + 1))
-    echo "not ok $count - $1"
-    printf '%s\n' "$2" | sed 's/^/# /'
-}
+# shellcheck source=tests/tap.sh
+. "$here/tap.sh"
 
 # check DESC TEXT REGEX: a line of TEXT matches REGEX
 check() {

@@ -31,6 +31,47 @@ tell that a unit whose `conf` is not executable is skipped, which a
 `make -n` of the same recipe cannot, since the `[ -x ]` guard is resolved
 by the shell and not by make.
 
+## 2026-09-28: the package, and the tag that resolves a manifest
+
+`tests/coverage.sh` now runs four suites:
+
+| Suite | Checks | What it measures |
+|-------|--------|------------------|
+| tests/source-date-epoch.sh | 19 of 19 | the `SOURCE_DATE_EPOCH` handling |
+| tests/units.sh | 56 of 56 | the unit loop, `UNITS`, the position of the units in `root.patched`, the per-unit removelist and `UNIT_CONF_VARS` |
+| tests/packaging.sh | 34 of 34 | the package identity and relationships, every path the package ships, and `fablib/version.py` |
+| tests/release-tags.sh | 15 of 15 | `bin/check-release-tags`: each verdict and each exit code |
+
+Total 124 of 124, 100 percent. The gate stays at 100.
+
+`tests/packaging.sh` exists for one reason. Roughly 380 call sites across
+this organization name `fab-chroot`, `fab-apply-overlay`, `FAB_PATH` or
+`/usr/share/fab`, and none of them reads the Debian package name, so
+renaming the package to `keel-fab` is invisible to all of them, provided
+the package still ships the same paths. debhelper keys `.install`, `.links`
+and `.docs` on the binary package name, so a rename that forgets to move
+those three files builds a package with no `/usr/bin/fab*` and no
+`/usr/share/fab` at all, and the failure appears at the first `fab-chroot`
+of the next build rather than at packaging time. Each of the nine
+`/usr/bin/fab-*` aliases is therefore one check of its own, and so is each
+line of the install file.
+
+The five branches of `fablib/version.py` (absent file, empty file,
+whitespace, a value, and the default and overridden share path) are driven
+directly rather than through the `fab` entry point, which imports `chroot`
+and `python3-debian` and so cannot run on the coverage runner.
+
+`tests/release-tags.sh` builds throwaway git repositories under `mktemp -d`
+and runs the script against them, so the suite does not depend on the tags
+of this repository: a tagged history, a missing tag, a tag on the wrong
+commit, an `UNRELEASED` entry, a source rename, and the three unusable
+inputs each get a check.
+
+The TAP helpers moved to `tests/tap.sh` when the third suite wanted them.
+The handbook records copying a test library instead of sharing it as
+something this project did wrong and would do again unless it was written
+down.
+
 ## Baseline before the merge: 0 percent, nothing measured
 
 `tests/` holds `regtest.sh` (77 lines), `override.sh`, `parseopts.py` and

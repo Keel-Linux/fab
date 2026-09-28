@@ -70,6 +70,23 @@ else
     not_ok "the version is a plain Debian version" "got: $version"
 fi
 
+# A changelog is one monotonic series whatever the source name does. The
+# organization's require-changelog gate compares the proposed top version
+# against the base's with "dpkg --compare-versions gt", and reprepro and
+# dpkg-genchanges read the file the same way, so a rename cannot reset the
+# numbering downwards. Measured: 0.1.0 was proposed for this rename first,
+# matching the plain scheme the other Keel packages start at, and the gate
+# refused it against 1.1.1+keel2. That is why the version is 2.0.0.
+previous="$(sed -nE '2,$ s/^[^ ]+ \(([^)]+)\).*/\1/p' "$changelog" | head -1)"
+if dpkg --compare-versions "$version" gt "$previous"; then
+    ok "the version is greater than the entry below it"
+else
+    not_ok "the version is greater than the entry below it" \
+        "$version is not greater than $previous; a changelog is one series
+however the source is renamed, and require-changelog, reprepro and
+dpkg-genchanges all read it that way"
+fi
+
 maintainer="$(field "$control" Maintainer)"
 if [[ "$maintainer" == *turnkeylinux.org* ]]; then
     not_ok "the maintainer is this project" \

@@ -1,9 +1,18 @@
-keel-fab (0.1.0) trixie; urgency=medium
+keel-fab (2.0.0) trixie; urgency=medium
 
   * This is now a Keel package with a version this project chose, rather
     than TurnKey's 1.1.1 with a +keelN suffix on it. The source and binary
     package are keel-fab; the repository keeps its upstream name, per
     decision 0006, and the upstream history and remote are unchanged.
+  * 2.0.0 rather than a reset to 0.1.0. A changelog is one monotonic series
+    whatever the source name does: the organization's require-changelog gate
+    compares the proposed top version against the base's with
+    dpkg --compare-versions gt, and reprepro and dpkg-genchanges read the
+    file the same way. 0.1.0 was proposed first and refused, correctly, as
+    lower than 1.1.1+keel2. A major bump is also the honest signal: the
+    package name, the numbering and the ownership all change at once, and
+    this code has been building every layer in production since before it
+    was ours, so a 0.x would claim it is pre-release.
   * Provides, Conflicts and Replaces fab, so a host converts in one
     apt-get install and can never carry both.
   * Nothing a caller can see is renamed: /usr/bin/fab, the nine fab-*

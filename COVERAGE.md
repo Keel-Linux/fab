@@ -39,10 +39,10 @@ by the shell and not by make.
 |-------|--------|------------------|
 | tests/source-date-epoch.sh | 19 of 19 | the `SOURCE_DATE_EPOCH` handling |
 | tests/units.sh | 56 of 56 | the unit loop, `UNITS`, the position of the units in `root.patched`, the per-unit removelist and `UNIT_CONF_VARS` |
-| tests/packaging.sh | 35 of 35 | the package identity and relationships, every path the package ships, and `fablib/version.py` |
+| tests/packaging.sh | 36 of 36 | the package identity and relationships, every path the package ships, and `fablib/version.py` |
 | tests/release-tags.sh | 15 of 15 | `bin/check-release-tags`: each verdict and each exit code |
 
-Total 125 of 125, 100 percent. The gate stays at 100.
+Total 126 of 126, 100 percent. The gate stays at 100.
 
 `tests/packaging.sh` exists for one reason. Roughly 380 call sites across
 this organization name `fab-chroot`, `fab-apply-overlay`, `FAB_PATH` or
@@ -63,14 +63,16 @@ and `python3-debian` and so cannot run on the coverage runner.
 
 What the suite cannot assert is that the built package is the same package,
 so that was measured instead, by building both in a `debian:trixie`
-container and comparing. `keel-fab 0.1.0` against the `fab 1.1.1+keel2`
-installed on the build host: the same 26 paths, 24 of them byte identical,
-`/usr/bin/fab` differing only by the `get_version` change and
-`runtime.d/*.rtupdate` only by the package name inside it, plus the two new
-files `fablib/version.py` and `/usr/share/fab/version`. All nine
-`/usr/bin/fab-*` symlinks and `share/product.mk` are byte identical. The
-two `debian/rules` overrides were each measured on their own and together,
-which is how the `dh_python3` interaction below was found.
+container and comparing. `keel-fab 2.0.0` against the `fab 1.1.1+keel2`
+installed on the build host: **all 28 paths the old package had are present,
+26 of them byte identical**, including all nine `/usr/bin/fab-*` symlinks
+and `share/product.mk`. The two that differ are `/usr/bin/fab`, by the
+`get_version` change alone, and `runtime.d/*.rtupdate`, by the package name
+inside it. Two files are new, `fablib/version.py` and
+`/usr/share/fab/version`. Nothing is missing.
+
+The two `debian/rules` overrides were each measured on their own and
+together, which is how the `dh_python3` interaction below was found.
 
 `tests/release-tags.sh` builds throwaway git repositories under `mktemp -d`
 and runs the script against them, so the suite does not depend on the tags

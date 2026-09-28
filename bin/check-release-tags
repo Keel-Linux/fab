@@ -1,0 +1,113 @@
+#!/bin/bash
+# Every version this repository has released must be reachable from a git
+# tag, in both directions.
+#
+# A layer manifest records the builder as a version string and nothing
+# else: core.manifest on the mirror carries "fab_version 1.1.1+keel1". That
+# string is provenance only if it names a commit. On 2026-09-27 a package
+# was built at 17:14 from a commit that reached the default branch at 19:58
+# and was never tagged, so for three hours the machine that builds every
+# layer ran a version no clone could resolve to a commit.
+#
+# The rule this enforces:
+#
+#   - every entry of debian/changelog whose distribution is not UNRELEASED
+#     is a release;
+#   - the newest release is the one being proposed and may be untagged;
+#   - every release below it must have a tag <source>/<version>, and the
+#     tree that tag names must carry <version> at the top of its changelog.
+#
+# The source name comes from each entry, so versions released before a
+# rename are checked under the name they were released as: fab/1.1.1+keel2,
+# not keel-fab/1.1.1+keel2.
+#
+# Going the other way needs no extra machinery: "git describe --match
+# '*/*'" on a commit says which release it belongs to, and the tag's
+# changelog says the version a manifest would record.
+#
+#   bin/check-release-tags [REPOSITORY]      (default: the current directory)
+#
+# Exit 0 every release is tagged, 1 a release is untagged or a tag does not
+# carry its version, 2 the repository or its changelog cannot be read.
+
+set -uo pipefail
+
+PROGRAM="$(basename "$0")"
+
+die() {
+    local status=$1
+    shift
+    printf '%s: %s\n' "$PROGRAM" "$*" >&2
+    exit "$status"
+}
+
+# changelog_entries FILE: "<source> <version> <distribution>" per entry,
+# newest first.
+changelog_entries() {
+    sed -nE 's/^([a-z0-9][a-z0-9.+-]*) \(([^)]+)\) +([^ ;]+).*/\1 \2 \3/p' "$1"
+}
+
+# tag_version REPOSITORY TAG: the version at the top of the changelog of the
+# tree that TAG names, empty when there is none.
+tag_version() {
+    git -C "$1" show "$2:debian/changelog" 2>/dev/null |
+        sed -nE '1s/^[a-z0-9][a-z0-9.+-]* \(([^)]+)\).*/\1/p'
+}
+
+# has_tag REPOSITORY TAG
+has_tag() {
+    git -C "$1" rev-parse -q --verify "refs/tags/$2" >/dev/null 2>&1
+}
+
+repository="${1:-.}"
+
+git -C "$repository" rev-parse --git-dir >/dev/null 2>&1 ||
+    die 2 "$repository is not a git repository"
+
+changelog="$repository/debian/changelog"
+[[ -f "$changelog" ]] || die 2 "$changelog does not exist"
+
+mapfile -t entries < <(changelog_entries "$changelog")
+[[ ${#entries[@]} -gt 0 ]] || die 2 "$changelog has no entries"
+
+problems=0
+proposed=""
+
+for entry in "${entries[@]}"; do
+    read -r source version distribution <<<"$entry"
+    [[ "$distribution" == UNRELEASED ]] && continue
+
+    tag="$source/$version"
+
+    if [[ -z "$proposed" ]]; then
+        proposed="$tag"
+        if has_tag "$repository" "$tag"; then
+            echo "$tag is the newest release and is tagged"
+        else
+            echo "$tag is the release being proposed, not tagged yet"
+        fi
+        continue
+    fi
+
+    if ! has_tag "$repository" "$tag"; then
+        printf '%s: %s is missing: %s was released and no tag names the commit it was built from\n' \
+            "$PROGRAM" "$tag" "$version" >&2
+        problems=$((problems + 1))
+        continue
+    fi
+
+    carried="$(tag_version "$repository" "$tag")"
+    if [[ "$carried" != "$version" ]]; then
+        printf '%s: %s names a tree whose changelog says %s, not %s\n' \
+            "$PROGRAM" "$tag" "${carried:-nothing}" "$version" >&2
+        problems=$((problems + 1))
+        continue
+    fi
+
+    echo "$tag names the commit that carries $version"
+done
+
+[[ -n "$proposed" ]] || die 2 "$changelog has no released entry"
+
+[[ $problems -eq 0 ]] ||
+    die 1 "$problems released version(s) cannot be traced to a tag"

@@ -1,6 +1,6 @@
-Source: fab
+Source: keel-fab
 Section: misc
-Maintainer: Stefan Davis <stefan@turnkeylinux.org>
+Maintainer: Keel Linux maintainers <admin@keellinux.org>
 Build-Depends:
  debhelper-compat (= 13),
  python3-all (>= 3.13),
@@ -10,10 +10,10 @@ Build-Depends:
  python3-debian,
 Standards-Version: 4.7.2
 X-Python3-Version: >= 3.13
-Vcs-Git: https://github.com/turnkeylinux/fab.git
-Vcs-Browser: https://github.com/turnkeylinux/fab
+Vcs-Git: https://github.com/Keel-Linux/fab.git
+Vcs-Browser: https://github.com/Keel-Linux/fab
 
-Package: fab
+Package: keel-fab
 Architecture: all
 Depends:
  cpp,
@@ -25,7 +25,21 @@ Depends:
  xorriso,
  squashfs-tools,
  pool,
+Provides: fab
+Conflicts: fab
+Replaces: fab
 Suggests:
  dd,
  wodim,
-Description: TurnKey GNU/Linux product fabrication framework
+Description: Keel Linux product fabrication framework
+ fab builds a product from a plan, an overlay and a set of conf scripts: it
+ resolves the plan against an archive, installs it into a chroot, applies
+ the overlays and the removelists, and packs the result.
+ .
+ Everything a caller can see is unchanged from the TurnKey package this one
+ replaces: /usr/bin/fab and the fab-chroot, fab-apply-overlay,
+ fab-apply-patch, fab-apply-removelist, fab-cpp, fab-install,
+ fab-plan-annotate, fab-plan-resolve and fab-query aliases, the makefile
+ fragment at /usr/share/fab/product.mk, and the fablib python package. Only
+ the Debian package is renamed, so buildtasks, the shared makefiles and
+ every recipe keep working without a change.

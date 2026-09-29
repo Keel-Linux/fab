@@ -10,7 +10,7 @@ build/
 *.egg-info/
 
 # deb package build assests
-debian/fab/
+debian/keel-fab/
 
 debian/.debhelper/
 debian/debhelper-build-stamp

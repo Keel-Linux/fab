@@ -2,16 +2,28 @@
 requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
+# The name and the version here are the third and fourth places this package
+# states what it is, after debian/control and debian/changelog. They used to
+# disagree: the package said "fab 1.1.0" to importlib.metadata while dpkg
+# said "fab 1.1.1+keel2", which is the kind of thing somebody finds while
+# looking for something else. They are asserted equal to debian/ by
+# tests/packaging.sh now, so there is one name and one version.
+#
+# Keep the version in step with the top entry of debian/changelog in the same
+# commit; the test fails otherwise.
 [project]
-name = "fab"
-version = "1.1.0"
-authors = [{name = "TurnKey GNU/Linux", email = "jeremy@turnkeylinux.org"}]
+name = "keel-fab"
+version = "2.0.0"
+authors = [{name = "Keel Linux maintainers", email = "admin@keellinux.org"}]
 license = "GPL-3.0-or-later"
-description = "TurnKey GNU/Linux product fabrication framework"
+description = "Keel Linux product fabrication framework"
 
 [project.urls]
-Homepage = "https://github.com/turnkeylinux/fab"
+Homepage = "https://github.com/Keel-Linux/fab"
 
+# script-files keeps the entry point installed as /usr/bin/fab. The command
+# names are not renamed by any of this: roughly 600 call sites across the
+# organization name them, and none reads the package name.
 [tool.setuptools]
 packages = ["fablib"]
 script-files = ["fab"]

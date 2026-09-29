@@ -1,3 +1,35 @@
+keel-fab (2.0.0) trixie; urgency=medium
+
+  * This is now a Keel package with a version this project chose, rather
+    than TurnKey's 1.1.1 with a +keelN suffix on it. The source and binary
+    package are keel-fab; the repository keeps its upstream name, per
+    decision 0006, and the upstream history and remote are unchanged.
+  * 2.0.0 rather than a reset to 0.1.0. A changelog is one monotonic series
+    whatever the source name does: the organization's require-changelog gate
+    compares the proposed top version against the base's with
+    dpkg --compare-versions gt, and reprepro and dpkg-genchanges read the
+    file the same way. 0.1.0 was proposed first and refused, correctly, as
+    lower than 1.1.1+keel2. A major bump is also the honest signal: the
+    package name, the numbering and the ownership all change at once, and
+    this code has been building every layer in production since before it
+    was ours, so a 0.x would claim it is pre-release.
+  * Provides, Conflicts and Replaces fab, so a host converts in one
+    apt-get install and can never carry both.
+  * Nothing a caller can see is renamed: /usr/bin/fab, the nine fab-*
+    aliases, /usr/share/fab/product.mk and the fablib python package keep
+    their names and their paths. buildtasks, the shared makefiles and every
+    recipe call the commands, never the package.
+  * Report the version the package was built as, read from
+    /usr/share/fab/version, instead of running "apt-cache policy fab". That
+    asked about whatever package is called fab on the machine rather than
+    about itself, so after the rename it would have answered "(none)", and
+    bt-layer writes the answer into every layer manifest as fab_version.
+  * Forked from turnkeylinux/fab 1.1.1. Everything released under the old
+    name stays in this changelog below, and the tags fab/1.1.1+keel1 and
+    fab/1.1.1+keel2 name the commits those two packages were built from.
+
+ -- Keel Linux maintainers <admin@keellinux.org>  Mon, 28 Sep 2026 08:00:00 +0000
+
 fab (1.1.1+keel2) trixie; urgency=low
 
   * Apply the units before the common removelists, and let a build select

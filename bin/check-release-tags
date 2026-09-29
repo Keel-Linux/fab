@@ -1,0 +1,168 @@
+#!/bin/bash
+# Every version this repository has released must be reachable from a git
+# tag, in both directions.
+#
+# A layer manifest records the builder as a version string and nothing
+# else: core.manifest on the mirror carries "fab_version 1.1.1+keel1". That
+# string is provenance only if it names a commit. On 2026-09-27 a package
+# was built at 17:14:56 UTC from a commit that reached the default branch at
+# 19:58:53 UTC and was never tagged, so the machine that builds every layer
+# ran a version no clone could resolve to a commit.
+#
+# The rule this enforces:
+#
+#   - every entry of debian/changelog whose distribution is not UNRELEASED,
+#     and whose version is at or above the floor, is a release;
+#   - the entry at the top of the file may be untagged, because it is the
+#     release a pull request is proposing and the commit it will be tagged
+#     on does not exist yet. --require-newest revokes that, and the default
+#     branch is where it belongs: a merged, built and installed release with
+#     no tag is the defect this rule exists for;
+#   - every other release must have a tag <source>/<version> which is
+#     annotated, is an ancestor of HEAD, and whose tree carries <version> at
+#     the top of its changelog.
+#
+# The source name comes from each entry, so versions released before a
+# rename are checked under the name they were released as: fab/1.1.1+keel2,
+# not keel-fab/1.1.1+keel2.
+#
+# Annotated and reachable are not fussiness. The other direction of the
+# invariant is "git describe --match '*/*'", which refuses a lightweight tag
+# outright, so accepting one here would enforce the two halves to different
+# standards; and a tag on a commit outside the branch names nothing at all.
+#
+# The floor exists because a fork's changelog carries the upstream entries it
+# was forked from, and upstream tags those its own way: fab's are v1.1.0 and
+# v1.0.3. Without it, a merge from upstream that brought real entries into
+# the file would demand tags that are not ours to make.
+#
+# Known limit: a version with an epoch cannot satisfy this rule, because
+# refs/tags/<source>/1:2.0.0 is not a legal refname. BRIEF section 7 forbids
+# an epoch except as a last resort, and this is one more reason.
+#
+#   bin/check-release-tags [--require-newest] [--since VERSION] [REPOSITORY]
+#
+# Exit 0 every release is tagged, 1 a release is untagged or its tag does not
+# name the right commit, 2 the arguments, the repository or its changelog
+# cannot be used.
+
+set -uo pipefail
+
+PROGRAM="$(basename "$0")"
+
+die() {
+    local status=$1
+    shift
+    printf '%s: %s\n' "$PROGRAM" "$*" >&2
+    exit "$status"
+}
+
+# changelog_entries FILE: "<source> <version> <distribution>" per entry,
+# newest first.
+changelog_entries() {
+    sed -nE 's/^([a-z0-9][a-z0-9.+-]*) \(([^)]+)\) +([^ ;]+).*/\1 \2 \3/p' "$1"
+}
+
+# tag_version REPOSITORY TAG: the version at the top of the changelog of the
+# tree that TAG names, empty when there is none.
+tag_version() {
+    git -C "$1" show "$2:debian/changelog" 2>/dev/null |
+        sed -nE '1s/^[a-z0-9][a-z0-9.+-]* \(([^)]+)\).*/\1/p'
+}
+
+# tag_problem REPOSITORY TAG: why TAG does not name a release, empty when it
+# does.
+tag_problem() {
+    local repository=$1 tag=$2 ref="refs/tags/$2"
+
+    git -C "$repository" rev-parse -q --verify "$ref" >/dev/null 2>&1 ||
+        { echo "is missing"; return; }
+
+    # An annotated tag is its own object; a lightweight one points straight
+    # at the commit, and git describe will not use it.
+    [[ "$(git -C "$repository" cat-file -t "$ref" 2>/dev/null)" == tag ]] ||
+        { echo "is a lightweight tag, and a release tag has to be annotated"
+          return; }
+
+    git -C "$repository" merge-base --is-ancestor "$ref" HEAD 2>/dev/null ||
+        { echo "is not in this branch"; return; }
+}
+
+require_newest=false
+since=""
+repository=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --require-newest) require_newest=true; shift ;;
+        --since) [[ $# -ge 2 ]] || die 2 "--since needs a version"
+                 since=$2; shift 2 ;;
+        --since=*) since=${1#--since=}; shift ;;
+        -h|--help) sed -n '2,48p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -*) die 2 "unknown option $1" ;;
+        *) [[ -z "$repository" ]] || die 2 "only one repository at a time"
+           repository=$1; shift ;;
+    esac
+done
+repository="${repository:-.}"
+
+git -C "$repository" rev-parse --git-dir >/dev/null 2>&1 ||
+    die 2 "$repository is not a git repository"
+
+changelog="$repository/debian/changelog"
+[[ -f "$changelog" ]] || die 2 "$changelog does not exist"
+
+mapfile -t entries < <(changelog_entries "$changelog")
+[[ ${#entries[@]} -gt 0 ]] || die 2 "$changelog has no entries"
+
+problems=0
+seen_release=false
+
+for index in "${!entries[@]}"; do
+    read -r source version distribution <<<"${entries[$index]}"
+
+    [[ "$distribution" == UNRELEASED ]] && continue
+    if [[ -n "$since" ]] && ! dpkg --compare-versions "$version" ge "$since"
+    then
+        continue
+    fi
+
+    seen_release=true
+    tag="$source/$version"
+
+    # Only the entry at the very top of the file is the one being proposed.
+    # An UNRELEASED entry above a release does not pass the exemption down,
+    # or the newest real release would stay exempt for as long as somebody
+    # left a work in progress entry on top.
+    if [[ $index -eq 0 ]] && ! $require_newest; then
+        if [[ -z "$(tag_problem "$repository" "$tag")" ]]; then
+            echo "$tag is the newest release and is tagged"
+        else
+            echo "$tag is the release being proposed, not tagged yet"
+        fi
+        continue
+    fi
+
+    problem="$(tag_problem "$repository" "$tag")"
+    if [[ -n "$problem" ]]; then
+        printf '%s: %s %s, and %s was released\n' \
+            "$PROGRAM" "$tag" "$problem" "$version" >&2
+        problems=$((problems + 1))
+        continue
+    fi
+
+    carried="$(tag_version "$repository" "$tag")"
+    if [[ "$carried" != "$version" ]]; then
+        printf '%s: %s names a tree whose changelog says %s, not %s\n' \
+            "$PROGRAM" "$tag" "${carried:-nothing}" "$version" >&2
+        problems=$((problems + 1))
+        continue
+    fi
+
+    echo "$tag names the commit that carries $version"
+done
+
+$seen_release || die 2 "$changelog has no released entry at or above ${since:-any version}"
+
+[[ $problems -eq 0 ]] ||
+    die 1 "$problems released version(s) cannot be traced to a tag"

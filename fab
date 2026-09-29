@@ -30,6 +30,7 @@ from debian import deb822
 from fablib import annotate, cpp, removelist, resolve
 from fablib.installer import Installer, LiveInstaller, PoolInstaller
 from fablib.plan import Dependency, Plan
+from fablib.version import package_version
 
 log_level = {
     "DEBUG": logging.DEBUG,
@@ -50,14 +51,7 @@ class SupportsStr(Protocol):
 
 
 def get_version() -> NoReturn:
-    ver = subprocess.run(
-        ["apt-cache", "policy", "fab"], capture_output=True, text=True
-    ).stdout.split()
-    if ver and len(ver) > 2:
-        print(ver[2])
-    else:
-        print("Could not detect version via apt.", file=sys.stderr)
-        print("unknown")
+    print(package_version())
     sys.exit(0)
 
 
@@ -439,7 +433,7 @@ Configuration environment variables:
         "-v",
         "--version",
         action="store_true",
-        help="Echo version (from apt) and exit",
+        help="Echo the version this package was built as and exit",
     )
     subparsers = parser.add_subparsers(dest="command")
 

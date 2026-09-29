@@ -29,11 +29,6 @@ jobs:
   # Every version this repository has released must name the commit it was
   # built from: a layer manifest records the builder as a version string and
   # nothing else, so the string is provenance only if a tag resolves it.
-  # bin/check-release-tags states the rule and exempts the newest entry of
-  # the changelog, which is the release a pull request is proposing.
-  # Every version this repository has released must name the commit it was
-  # built from: a layer manifest records the builder as a version string and
-  # nothing else, so the string is provenance only if a tag resolves it.
   #
   # Two invocations, because the newest entry means different things in the
   # two places. On a pull request it is the release being proposed and the

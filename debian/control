@@ -1,6 +1,7 @@
 Source: fab
 Section: misc
-Maintainer: Stefan Davis <stefan@turnkeylinux.org>
+Maintainer: KeelLinux maintainers <admin@keellinux.org>
+Uploaders: Marcos Mendez <mendez.foto@gmail.com>
 Build-Depends:
  debhelper-compat (= 13),
  python3-all (>= 3.13),

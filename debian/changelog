@@ -1,3 +1,11 @@
+fab (1.1.1+keel3) trixie; urgency=low
+
+  * Maintainer and Uploaders are the Keel Linux maintainers; the TurnKey
+    Linux team asked not to be listed as maintainers of this fork. Their
+    copyright and attribution are unchanged.
+
+ -- Marcos Mendez <mendez.foto@gmail.com>  Wed, 07 Oct 2026 14:14:24 +0000
+
 fab (1.1.1+keel2) trixie; urgency=low
 
   * Apply the units before the common removelists, and let a build select

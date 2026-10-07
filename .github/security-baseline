@@ -1,0 +1,15 @@
+# Security scan baseline (keel-linux/.github, security-scan.yml): findings
+# that were read and are not a risk, one per line, the fingerprint and why.
+bandit:B103:fab:ffd27f9c28e2 a build script copied into the chroot's private temporary directory must be executable to run; 0755 grants no write
+bandit:B103:fablib/installer.py:d10b35a2f4b7 RevertibleScript writes a script that must be executable; 0755 grants no write
+bandit:B324:fablib/annotate.py:804854d3f4b1 md5 keys a dict of comments while annotating a plan, not a security digest
+bandit:B324:fablib/installer.py:65a598eb8621 the MD5sum field of a local build-time Packages index, written beside SHA256, which apt verifies
+semgrep:python.lang.security.audit.insecure-file-permissions.insecure-file-permissions:fab:ffd27f9c28e2 a build script copied into the chroot's private temporary directory must be executable to run; 0755 grants no write
+semgrep:python.lang.security.audit.insecure-file-permissions.insecure-file-permissions:fablib/installer.py:d10b35a2f4b7 RevertibleScript writes a script that must be executable; 0755 grants no write
+semgrep:python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5:fablib/annotate.py:804854d3f4b1 md5 keys a dict of comments while annotating a plan, not a security digest
+semgrep:python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5:fablib/installer.py:65a598eb8621 the MD5sum field of a local build-time Packages index, written beside SHA256, which apt verifies
+shellcheck:SC2034:share/initctl.dummy:643b2d76d880 shell lint, not a security risk: a variable read by a sourcing script or left unused
+shellcheck:SC2034:share/initctl.dummy:e9d8ec72bc58 shell lint, not a security risk: a variable read by a sourcing script or left unused
+shellcheck:SC2046:share/initctl.dummy:964e4d091e7d shell lint, not a security risk: unquoted command substitution over values the script itself produces
+shellcheck:SC2166:share/initctl.dummy:8e802790ac73 shell lint, not a security risk: -a/-o in test
+shellcheck:SC2166:share/initctl.dummy:d03c108e3f50 shell lint, not a security risk: -a/-o in test

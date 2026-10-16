@@ -1,13 +1,16 @@
-# Coverage gate: 100 percent, the number tests/coverage.sh measures on this
-# branch (COVERAGE.md, "measured baseline"). Only ever raised (decision 0006).
-# The check is "tests / coverage".
+# Light CI on GitHub-hosted runners, for pull requests on the GitHub mirror
+# (decision 0056). The full CI is .forgejo/workflows on git.pop.coop, and
+# .forgejo/workflows/tests.yml has the notes on each job.
 name: tests
+
 on:
   pull_request:
-  push:
-    branches: [master]
+
+permissions:
+  contents: read
+
 jobs:
   tests:
-    uses: keel-linux/.github/.github/workflows/test-shell.yml@main
+    uses: keel-linux/.github/.github/workflows/github-test-shell.yml@main
     with:
       threshold: 100

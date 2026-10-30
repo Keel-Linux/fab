@@ -2,6 +2,7 @@
 # Coverage of the project-authored code in share/product.mk:
 #   tests/source-date-epoch.sh   the SOURCE_DATE_EPOCH handling
 #   tests/units.sh               the unit loop and UNITS
+#   tests/chroot-exit.sh         the exit status of fab chroot (fab#15)
 #
 # make has no line coverage tool, so the number here is the share of the
 # checks in those scripts that pass: one check per effect of the touched
@@ -17,7 +18,7 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 threshold="${1:-${COVERAGE_THRESHOLD:-95}}"
 
-suites=(source-date-epoch units)
+suites=(source-date-epoch units chroot-exit)
 
 total=0
 passed=0

@@ -31,6 +31,13 @@ tell that a unit whose `conf` is not executable is skipped, which a
 `make -n` of the same recipe cannot, since the `[ -x ]` guard is resolved
 by the shell and not by make.
 
+## 2026-10-30: the exit status of fab chroot (fab#15)
+
+`tests/chroot-exit.sh` adds 7 checks of the three branches of `cmd_chroot`
+in `fab`: a command string, no command and `--script`, with status 0, a
+failure, and a signal. The Chroot class is a stub, so no root is necessary.
+Before the fix 4 of the 7 failed. Total 82 of 82, 100 percent.
+
 ## Baseline before the merge: 0 percent, nothing measured
 
 `tests/` holds `regtest.sh` (77 lines), `override.sh`, `parseopts.py` and

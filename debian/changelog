@@ -1,3 +1,13 @@
+fab (1.1.1+keel4) trixie; urgency=medium
+
+  * fab chroot exits with the status of the command in all three forms:
+    a command string, no command (a shell) and --script. Before, only
+    --script did, so "fab-chroot ROOT 'command'" exited 0 when the command
+    failed and a product recipe did not stop (fab#15). A command killed by
+    signal N gives 128+N, as a shell does. tests/chroot-exit.sh, 7 checks.
+
+ -- Marcos Mendez <mendez.foto@gmail.com>  Fri, 30 Oct 2026 17:20:00 +0000
+
 fab (1.1.1+keel3) trixie; urgency=low
 
   * Maintainer and Uploaders are the Keel Linux maintainers; the TurnKey

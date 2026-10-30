@@ -279,6 +279,36 @@ build_fails "a unit removelist that fails stops the build" \
 not_called "nothing after a failed unit removelist runs" "$local_overlay"
 unset STUB_FAIL
 
+# --- the initramfs step (fab#15) ------------------------------------------------
+# fab chroot now exits with the status of the command. A layer with no kernel
+# has neither initramfs tool, so the step must be a no-op there, and a tool
+# that is installed and fails must stop the build.
+
+builds "a default build succeeds" build/stamps/root.patched
+called "the initramfs step is one guarded fab-chroot call" \
+    '^fab-chroot build/root\.patched if command -v update-initramfs '
+step="$(sed -n 's|^fab-chroot build/root\.patched \(if command -v update-initramfs .*\)$|\1|p' "$log" | head -n 1)"
+
+mkdir -p "$work/initramfs/none" "$work/initramfs/fails" "$work/initramfs/live"
+printf '#!/bin/sh\nexit 1\n' > "$work/initramfs/fails/update-initramfs"
+printf '#!/bin/sh\necho live "$@" >> "%s"\n' "$work/initramfs/live.log" \
+    > "$work/initramfs/live/live-update-initramfs"
+chmod 755 "$work/initramfs/fails/update-initramfs" \
+    "$work/initramfs/live/live-update-initramfs"
+initramfs_rc() {
+    PATH="$work/initramfs/$1" /bin/bash -c "$step" >/dev/null 2>&1
+    echo $?
+}
+is "with no initramfs tool the step exits 0" "$(initramfs_rc none)" 0
+is "a failing update-initramfs makes the step fail" "$(initramfs_rc fails)" 1
+is "live-update-initramfs runs when it is the only tool" \
+    "$(initramfs_rc live; cat "$work/initramfs/live.log" 2>/dev/null)" "0
+live -u"
+
+export STUB_FAIL='fab-chroot .*update-initramfs'
+build_fails "a failing initramfs step stops the build" build/stamps/root.patched
+unset STUB_FAIL
+
 # --- a layered build applies only the units the parent has not applied ---------
 
 builds "a build with a selected unit succeeds" \

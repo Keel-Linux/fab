@@ -1,3 +1,21 @@
+fab (1.1.1+keel4) trixie; urgency=medium
+
+  * fab chroot exits with the status of the command in all three forms:
+    a command string, no command (a shell) and --script. Before, only
+    --script did, so "fab-chroot ROOT 'command'" exited 0 when the command
+    failed and a product recipe did not stop (fab#15). A command killed by
+    signal N gives 128+N, as a shell does. The list form
+    (fab chroot ROOT echo a b) runs the arguments as one quoted command;
+    before, it stopped with a TypeError. tests/chroot-exit.sh, 9 checks.
+  * share/product.mk: the initramfs step is one fab-chroot call that runs
+    update-initramfs, or else live-update-initramfs, only when it is
+    installed. A layer with no kernel has neither, and the old
+    "fab-chroot update-initramfs || fab-chroot live-update-initramfs" would
+    now stop every layer build with status 127. A tool that is installed
+    and fails stops the build. tests/units.sh, 6 new checks.
+
+ -- Marcos Mendez <mendez.foto@gmail.com>  Fri, 30 Oct 2026 17:20:00 +0000
+
 fab (1.1.1+keel3) trixie; urgency=low
 
   * Maintainer and Uploaders are the Keel Linux maintainers; the TurnKey

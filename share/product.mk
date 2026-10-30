@@ -454,10 +454,10 @@ define root.patched/body
 	# apply the product-local removelist
 	$(if $(REMOVELIST),fab-apply-removelist $(REMOVELIST) $O/root.patched)
 
-	# update initramfs (handle reconfigured initramfs scripts)
+	# update initramfs (handle reconfigured initramfs scripts); a layer
+	# with no kernel has neither tool, and a tool that fails stops the build
 	[ -n "$(BUILDROOT)" ] \
-		|| fab-chroot $O/root.patched "update-initramfs -u" \
-		|| fab-chroot $O/root.patched "live-update-initramfs -u"
+		|| fab-chroot $O/root.patched "$(_update-initramfs)"
 	fab-chroot $O/root.patched "rm -rf /boot/*.bak"
 
 	# apply the common removelists-final
@@ -465,6 +465,8 @@ define root.patched/body
 	  fab-apply-removelist $(removelist) $O/root.patched; \
 	  )
 endef
+
+_update-initramfs = if command -v update-initramfs >/dev/null; then update-initramfs -u; elif command -v live-update-initramfs >/dev/null; then live-update-initramfs -u; fi
 
 define apt-cleanup
 	fab-chroot $1 "rm -f /var/cache/debconf/*-old"; \

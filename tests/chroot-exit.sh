@@ -74,5 +74,11 @@ check "--script, status 3" 3 "$(run 3 --script "$work/script.sh")"
 run 0 'a && b' >/dev/null
 check "command string goes to the chroot unchanged" "'a && b'" "$(cat "$STUB_LOG")"
 
+check "list form, status 4" 4 "$(run 4 -- false x)"
+
+: > "$STUB_LOG"
+run 0 -- echo 'a b' 'c;d' >/dev/null
+check "list form is one quoted command" "\"echo 'a b' 'c;d'\"" "$(cat "$STUB_LOG")"
+
 echo "1..$n"
 exit "$failed"

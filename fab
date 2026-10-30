@@ -9,6 +9,7 @@
 # option) any later version.
 
 import argparse
+import shlex
 import subprocess
 import tempfile
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
@@ -215,7 +216,11 @@ def cmd_chroot(
     if not script_args and not script_path_raw:
         sys.exit(exit_status(chroot.system()))
     elif script_path_raw is None:
-        sys.exit(exit_status(chroot.system(*script_args)))
+        # one argument is a shell command string; several are one command
+        command = (
+            script_args[0] if len(script_args) == 1 else shlex.join(script_args)
+        )
+        sys.exit(exit_status(chroot.system(command)))
     else:
         script_path = script_path_raw
         with tempfile.TemporaryDirectory(
